@@ -82,7 +82,7 @@ def main(args: argparse.Namespace) -> None:
         
     unique_nodes, unique_node_tags = [], set()
     for node in nodes:
-        node_tag = tuple((k, v) for k, v in node.items() if k not in ['Name', 'UUID'])
+        node_tag = tuple((k, v) for k, v in node.items() if k not in ['name', 'uuid'])
         if node_tag not in unique_node_tags:
             unique_node_tags.add(node_tag)
             unique_nodes.append(node)
