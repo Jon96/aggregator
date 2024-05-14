@@ -79,6 +79,16 @@ def main(args: argparse.Namespace) -> None:
             p.pop(k, None)
 
         nodes.append(p)
+        
+    unique_nodes, unique_node_tags = [], set()
+    for node in nodes:
+        # 将字典转换为元组，确保所有元素都是可哈希的
+        node_tag = tuple((k, str(v)) for k, v in node.items() if k not in ['name', 'uuid'])
+        if node_tag not in unique_node_tags:
+            unique_node_tags.add(node_tag)
+            unique_nodes.append(node)
+    dup_num = {len(nodes) - len(unique_nodes)}
+    nodes = unique_nodes
 
     # 记录每个名称出现的次数
     name_count = defaultdict(int)
@@ -98,7 +108,7 @@ def main(args: argparse.Namespace) -> None:
     data = {"proxies": nodes}
     with open(filepath, "w+", encoding="utf8") as f:
         yaml.dump(data, f, allow_unicode=True)
-        logger.info(f"found {len(nodes)} proxies, renamed {len(to_rename)} proxies, save it to {filepath}")
+        logger.info(f"found {len(nodes)} proxies, renamed {len(to_rename)} proxies, removed {dup_num} duplicated proxies, save it to {filepath}")
 
 
 if __name__ == "__main__":
