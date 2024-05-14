@@ -87,7 +87,7 @@ def main(args: argparse.Namespace) -> None:
         if node_tag not in unique_node_tags:
             unique_node_tags.add(node_tag)
             unique_nodes.append(node)
-    logger.info(f"Number of deduplicated proxies: {len(nodes) - len(unique_nodes)}")
+    dup_num = {len(nodes) - len(unique_nodes)}
     nodes = unique_nodes
 
     # 记录每个名称出现的次数
@@ -108,7 +108,7 @@ def main(args: argparse.Namespace) -> None:
     data = {"proxies": nodes}
     with open(filepath, "w+", encoding="utf8") as f:
         yaml.dump(data, f, allow_unicode=True)
-        logger.info(f"found {len(nodes)} proxies, renamed {len(to_rename)} proxies, save it to {filepath}")
+        logger.info(f"found {len(nodes)} proxies, renamed {len(to_rename)} proxies, removed {dup_num} duplicated proxies, save it to {filepath}")
 
 
 if __name__ == "__main__":
