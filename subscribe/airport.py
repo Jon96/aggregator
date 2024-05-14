@@ -526,7 +526,17 @@ class AirPort:
                 name = item.get("name", "")
                 if utils.isblank(name) or name in unused_nodes:
                     continue
-
+                # 保留部分节点信息
+                keep_pattern = re.compile(r'x\d+(\.\d+)?\|.*?@\d+(Mbps|Gbps)', re.IGNORECASE)
+                if keep_pattern.search(name):
+                    item["sub"] = self.sub
+                    item["liveness"] = self.liveness
+                    if allow_insecure:
+                        item["skip-cert-verify"] = allow_insecure
+                    if udp and "udp" not in item:
+                        item["udp"] = True
+                    proxies.append(item)
+                    continue
                 try:
                     if self.include and not re.search(self.include, name, re.I):
                         continue
