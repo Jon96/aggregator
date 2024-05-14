@@ -79,6 +79,15 @@ def main(args: argparse.Namespace) -> None:
             p.pop(k, None)
 
         nodes.append(p)
+        
+    unique_nodes, unique_node_tags = [], set()
+    for node in nodes:
+        node_tag = tuple((k, v) for k, v in node.items() if k not in ['Name', 'UUID'])
+        if node_tag not in unique_node_tags:
+            unique_node_tags.add(node_tag)
+            unique_nodes.append(node)
+    logger.info(f"Number of deduplicated proxies: {len(nodes) - len(unique_nodes)}")
+    nodes = unique_nodes
 
     # 记录每个名称出现的次数
     name_count = defaultdict(int)
