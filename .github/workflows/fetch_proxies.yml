@@ -28,7 +28,7 @@ jobs:
     - name: Collect Subscribe
       id: collect
       run: |
-        python -u subscribe/merge.py -u "${{ secrets.SUBS_LINK }}" -f "proxies.yaml" -m "${{ secrets.MAN_SUBS_LINK }}"
+        python -u subscribe/merge.py -u "${{ secrets.SUBS_LINK }}" -f "proxies.yaml" -m "${{ secrets.MAN_SUBS_LINK }}" -p "${{ secrets.PAGE_SUBS_LINK }}"
       
     - name: Create/Update Gist
       env:
