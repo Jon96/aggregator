@@ -33,16 +33,40 @@ def main(args: argparse.Namespace) -> None:
         auto_groups = []
 
     manual_url = utils.trim(text=args.manual_url)
-    manual_content = utils.http_get(url=manual_url, timeout=30)
-    manual_groups = re.findall(r"^https?://\S+", manual_content, flags=re.M)
-    if not manual_groups:
-        logger.warning("cannot found any valid manual subscription")
+    if not manual_url:
+        logger.warning("cannot find valid manual url for the subscriptions")
         manual_groups = []
     else:
-        for sub in set(manual_groups):
-            logger.info(f"found {sub} in manual subscription")
+        manual_content = utils.http_get(url=manual_url, timeout=30)
+        manual_groups = re.findall(r"^https?://\S+", manual_content, flags=re.M)
+        if not manual_groups:
+            logger.warning("cannot found any valid manual subscription")
+            manual_groups = []
+        else:
+            for sub in set(manual_groups):
+                logger.info(f"found {sub} in manual subscription")
 
-    groups = auto_groups + manual_groups
+    page_url = utils.trim(text=args.page_url)
+    page_groups = []
+    if not page_url:
+        logger.warning("cannot find valid page url for the subscriptions")
+    else:
+        page_content = utils.http_get(url=page_url, timeout=30)
+        page_subscriptions = re.findall(r"^https?://\S+", page_content, flags=re.M)
+        if not page_subscriptions:
+            logger.warning("cannot found any valid page subscription")
+        else:
+            for page in page_subscriptions:
+                cur_page_groups = re.findall(r"^https?://\S+", utils.http_get(url=page, timeout=30), flags=re.M)
+                if not cur_page_groups:
+                    logger.warning(f"cannot found any valid manual subscription in {page}")
+                else:
+                    for sub in set(cur_page_groups):
+                        if sub not in page_groups:
+                            logger.info(f"found {sub} in page subscription")
+                            page_groups.append(sub)
+
+    groups = auto_groups + manual_groups + page_groups
     if len(groups) < 1:
         logger.warning("cannot found any valid subscription")
         return
@@ -50,10 +74,11 @@ def main(args: argparse.Namespace) -> None:
     _, subconverter_bin = executable.which_bin()
     tasks, subscriptions = [], set(groups)
     for sub in subscriptions:
-        conf = TaskConfig(name=utils.random_chars(length=8), sub=sub, bin_name=subconverter_bin, special_protocols=args.special_protocols)
+        conf = TaskConfig(name=utils.random_chars(length=8), sub=sub, bin_name=subconverter_bin,
+                          special_protocols=args.special_protocols)
         tasks.append(conf)
 
-    logger.info(f"start generate subscribes information, all tasks: {len(tasks)}, manual tasks: {len(manual_groups)}")
+    logger.info(f"start generate subscribes information, all tasks: {len(tasks)}, manual tasks: {len(manual_groups)}, page tasks: {len(page_groups)}")
     generate_conf = os.path.join(PATH, "subconverter", "generate.ini")
     if os.path.exists(generate_conf) and os.path.isfile(generate_conf):
         os.remove(generate_conf)
@@ -79,7 +104,7 @@ def main(args: argparse.Namespace) -> None:
             p.pop(k, None)
 
         nodes.append(p)
-        
+
     unique_nodes, unique_node_tags = [], set()
     for node in nodes:
         # 将字典转换为元组，确保所有元素都是可哈希的
@@ -87,7 +112,7 @@ def main(args: argparse.Namespace) -> None:
         if node_tag not in unique_node_tags:
             unique_node_tags.add(node_tag)
             unique_nodes.append(node)
-    dup_num = {len(nodes) - len(unique_nodes)}
+    dup_num = len(nodes) - len(unique_nodes)
     nodes = unique_nodes
 
     # 记录每个名称出现的次数
@@ -108,7 +133,8 @@ def main(args: argparse.Namespace) -> None:
     data = {"proxies": nodes}
     with open(filepath, "w+", encoding="utf8") as f:
         yaml.dump(data, f, allow_unicode=True)
-        logger.info(f"found {len(nodes)} proxies, renamed {len(to_rename)} proxies, removed {dup_num} duplicated proxies, save it to {filepath}")
+        logger.info(
+            f"found {len(nodes)} proxies, renamed {len(to_rename)} proxies, removed {dup_num} duplicated proxies, save it to {filepath}")
 
 
 if __name__ == "__main__":
@@ -147,6 +173,15 @@ if __name__ == "__main__":
         required=False,
         default=os.environ.get("MANUAL_EXISTS_LINK", ""),
         help="manual subscriptions link",
+    )
+
+    parser.add_argument(
+        "-p",
+        "--page_url",
+        type=str,
+        required=False,
+        default=os.environ.get("PAGE_EXISTS_LINK", ""),
+        help="page subscriptions link",
     )
 
     parser.add_argument(
