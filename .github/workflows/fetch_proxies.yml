@@ -2,7 +2,7 @@ name: Get Node Via Subscription
 
 on:
   schedule:
-    - cron: '0 13 * * *'
+    - cron: "0 */2 * * *"
   workflow_dispatch: # 允许手动触发
 
 permissions:
