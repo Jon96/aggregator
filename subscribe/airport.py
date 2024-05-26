@@ -617,6 +617,24 @@ class AirPort:
                 if "" != tag.strip():
                     item["name"] = tag.strip().upper() + "-" + item["name"]
 
+                if os.environ.get("WHITE_SUB_URL", None) and self.ref:
+                    white_url_content = utils.http_get(url=os.environ.get("WHITE_SUB_URL", None), timeout=30)
+                    white_urls = re.findall(r"^https?://\S+", white_url_content, flags=re.M)
+                    if self.ref in white_urls:
+                        pattern = r'https?://(?:www\.)?([^/?]+)'
+                        match = re.match(pattern, self.ref)
+                        if match:
+                            domain = match.group(1)
+                            parts = domain.split('.')
+                            if len(parts[-3]) <= 15:
+                                domain_prefix = '.'.join(parts[-3:])
+                            elif len(parts[-2]) <= 15:
+                                domain_prefix = '.'.join(parts[-2:])
+                            else:
+                                domain_prefix = parts[-2][:15] + '.' + parts[-1]
+                            if len(domain_prefix) > 0:
+                                item["name"] = f'[domain_prefix]{item["name"]}'
+
                 # 方便过滤无效订阅
                 item["sub"] = self.sub
                 item["liveness"] = self.liveness

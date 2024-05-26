@@ -69,13 +69,51 @@ def assign(
     access_token = utils.trim(kwargs.get("access_token", ""))
     gist_id = utils.trim(kwargs.get("gist_id", ""))
     username = utils.trim(kwargs.get("username", ""))
+    special_protocols = kwargs.get("special_protocols", False)
 
     # 加载已有订阅
     subscriptions = load_exist(username, gist_id, access_token, subscribes_file)
+    logger.info(f"keep special_protocols in proxies: {special_protocols}")
     logger.info(f"load exists subscription finished, count: {len(subscriptions)}")
 
+    manual_url = utils.trim(text=kwargs.get("manual_url", ""))
+    if not manual_url:
+        logger.warning("cannot find valid manual url for the subscriptions")
+        manual_groups = []
+    else:
+        manual_content = utils.http_get(url=manual_url, timeout=30)
+        manual_groups = re.findall(r"^https?://\S+", manual_content, flags=re.M)
+        if not manual_groups:
+            logger.warning("cannot found any valid manual subscription")
+            manual_groups = []
+        else:
+            for sub in set(manual_groups):
+                logger.info(f"found {sub} in manual subscription")
+
+    page_url = utils.trim(text=kwargs.get("page_url", ""))
+    page_groups = []
+    if not page_url:
+        logger.warning("cannot find valid page url for the subscriptions")
+    else:
+        page_content = utils.http_get(url=page_url, timeout=30)
+        page_subscriptions = re.findall(r"^https?://\S+", page_content, flags=re.M)
+        if not page_subscriptions:
+            logger.warning("cannot found any valid page subscription")
+        else:
+            for page in page_subscriptions:
+                cur_page_groups = re.findall(r"^https?://\S+", utils.http_get(url=page, timeout=30), flags=re.M)
+                if not cur_page_groups:
+                    logger.warning(f"cannot found any valid manual subscription in {page}")
+                else:
+                    for sub in set(cur_page_groups):
+                        if sub not in page_groups:
+                            logger.info(f"found {sub} in page subscription")
+                            page_groups.append(sub)
+
+    subscriptions = set(subscriptions + manual_groups + page_groups)
+
     tasks = (
-        [TaskConfig(name=utils.random_chars(length=8), sub=x, bin_name=bin_name) for x in subscriptions if x]
+        [TaskConfig(name=utils.random_chars(length=8), sub=x, bin_name=bin_name, special_protocols=special_protocols) for x in subscriptions if x]
         if subscriptions
         else []
     )
@@ -128,7 +166,7 @@ def assign(
 
     for domain, coupon in domains.items():
         name = crawl.naming_task(url=domain)
-        tasks.append(TaskConfig(name=name, domain=domain, coupon=coupon, bin_name=bin_name, rigid=rigid))
+        tasks.append(TaskConfig(name=name, domain=domain, coupon=coupon, bin_name=bin_name, rigid=rigid, special_protocols=special_protocols))
 
     return tasks
 
@@ -163,6 +201,9 @@ def aggregate(args: argparse.Namespace) -> None:
         gist_id=gist_id,
         access_token=access_token,
         subscribes_file=subscribes_file,
+        special_protocols=args.special_protocols,
+        manual_url=args.manual_url,
+        page_url=args.page_url,
     )
 
     if not tasks:
@@ -240,7 +281,17 @@ def aggregate(args: argparse.Namespace) -> None:
         if sub:
             subscriptions.add(sub)
 
+    unique_nodes, unique_node_tags = [], set()
+    for node in nodes:
+        node_tag = tuple((k, str(v)) for k, v in node.items() if k not in ['name', 'uuid'])
+        if node_tag not in unique_node_tags:
+            unique_node_tags.add(node_tag)
+            unique_nodes.append(node)
+    dup_num = len(nodes) - len(unique_nodes)
+    nodes = unique_nodes
+
     data = {"proxies": nodes}
+    logger.info(f"found {len(nodes)} proxies, removed {dup_num} duplicated proxies")
     urls = list(subscriptions)
 
     # 如果文件夹不存在则创建
@@ -270,6 +321,7 @@ def aggregate(args: argparse.Namespace) -> None:
         if subconverter.convert(binname=subconverter_bin, artifact=artifact):
             shutil.move(os.path.join(PATH, "subconverter", dest_file), proxies_file)
             os.remove(filepath)
+
     else:
         with open(proxies_file, "w+", encoding="utf8") as f:
             yaml.dump(data, f, allow_unicode=True)
@@ -466,6 +518,33 @@ if __name__ == "__main__":
         required=False,
         default=0,
         help="vestigial traffic allowed to use, unit: GB",
+    )
+
+    parser.add_argument(
+        "-sp",
+        "--special_protocols",
+        dest="special_protocols",
+        action="store_true",
+        default=False,
+        help="if keep special_protocols in proxies",
+    )
+
+    parser.add_argument(
+        "-mu",
+        "--manual_url",
+        type=str,
+        required=False,
+        default=os.environ.get("MANUAL_GIST_LINK", ""),
+        help="manual subscriptions link",
+    )
+
+    parser.add_argument(
+        "-pu",
+        "--page_url",
+        type=str,
+        required=False,
+        default=os.environ.get("PAGE_GIST_LINK", ""),
+        help="page subscriptions link",
     )
 
     aggregate(args=parser.parse_args())

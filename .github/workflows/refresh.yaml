@@ -1,8 +1,8 @@
 name: Refresh
 on:
   # performed every two hours, disabled by default, uncomment and modify as needed
-  # schedule:
-  #   - cron: "0 */2 * * *"
+  schedule:
+     - cron: "0 */2 * * *"
   workflow_dispatch:
 
 env:
@@ -14,6 +14,11 @@ env:
 
   # github username and gist id, separated by '/'
   GIST_LINK: ${{ secrets.GIST_LINK }}
+
+  # extra subscription
+  MANUAL_GIST_LINK: ${{ secrets.MANUAL_GIST_LINK }}
+  PAGE_GIST_LINK: ${{ secrets.PAGE_GIST_LINK }}
+  WHITE_SUB_URL: ${{ secrets.WHITE_SUB_URL }}
 
 jobs:
   process:
@@ -36,7 +41,7 @@ jobs:
         run: pip3 install -r requirements.txt
 
       - name: Refresh
-        run: python -u subscribe/collect.py --all --clean --overwrite --skip
+        run: python -u subscribe/collect.py --all --clean --overwrite --skip --special_protocols
 
       - name: Timestamp
         run: date
