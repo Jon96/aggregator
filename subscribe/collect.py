@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import time
+from collections import defaultdict
 
 import crawl
 import executable
@@ -271,6 +272,15 @@ def aggregate(args: argparse.Namespace) -> None:
             logger.error(f"cannot fetch any proxy")
             sys.exit(0)
 
+        name_count, to_rename = defaultdict(int), []
+        for idx, proxy in enumerate(nodes):
+            name = proxy['name']
+            name_count[name] += 1
+            if name_count[name] > 1:
+                to_rename.append((idx, f"{name}_{name_count[name]}"))
+        for idx, new_name in to_rename:
+            nodes[idx]['name'] = new_name
+
     subscriptions = set()
     for p in proxies:
         # 移除无用的标记
@@ -299,6 +309,7 @@ def aggregate(args: argparse.Namespace) -> None:
 
     default_filename = "proxies.yaml"
     proxies_file = os.path.join(DATA_BASE, args.filename or default_filename)
+    logger.info(f"file_name: {proxies_file}")
 
     if args.all:
         dest_file, artifact, target = "config.yaml", "convert", "clash"
@@ -355,7 +366,7 @@ def aggregate(args: argparse.Namespace) -> None:
 
         if os.path.exists(proxies_file) and os.path.isfile(proxies_file):
             with open(proxies_file, "r", encoding="utf8") as f:
-                files[default_filename] = {"content": f.read(), "filename": default_filename}
+                files[default_filename] = {"content": f.read(), "filename": args.filename}
 
         if urls:
             files[subscribes_file] = {"content": "\n".join(urls), "filename": subscribes_file}

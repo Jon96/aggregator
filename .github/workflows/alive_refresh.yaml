@@ -1,8 +1,8 @@
-name: Refresh
+name: Alive Refresh
 on:
   # performed every two hours
-  # schedule:
-  #    - cron: "0 */2 * * *"
+  schedule:
+     - cron: "0 */2 * * *"
   workflow_dispatch:
 
 env:
@@ -59,7 +59,7 @@ jobs:
           fi
 
       - name: Refresh
-        run: python -u subscribe/collect.py --all --clean --overwrite --skip --special_protocols
+        run: python -u subscribe/collect.py -f alive_proxies.yaml --all --clean --overwrite --special_protocols
 
       - name: Timestamp
         run: date
