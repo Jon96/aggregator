@@ -87,9 +87,11 @@ def assign(
         if not manual_groups:
             logger.warning("cannot found any valid manual subscription")
             manual_groups = []
-        else:
-            for sub in set(manual_groups):
-                logger.info(f"found {sub} in manual subscription")
+        logger.info(f"found {len(set(manual_groups))} / {len(manual_content.splitlines())} subscriptions in manual text")
+
+    manual_proxy_url = utils.trim(text=kwargs.get("manual_proxy_url", ""))
+    if not manual_proxy_url:
+        logger.warning("cannot find valid manual proxy url for the subscriptions")
 
     page_url = utils.trim(text=kwargs.get("page_url", ""))
     page_groups = []
@@ -111,9 +113,11 @@ def assign(
                             logger.info(f"found {sub} in page subscription")
                             page_groups.append(sub)
 
-    subscriptions = set(subscriptions + manual_groups + page_groups)
+    if manual_proxy_url:
+        tasks = [TaskConfig(name=utils.random_chars(length=8), sub=manual_proxy_url, bin_name=bin_name, special_protocols=special_protocols)]
 
-    tasks = (
+    subscriptions = set(subscriptions + manual_groups + page_groups)
+    tasks += (
         [TaskConfig(name=utils.random_chars(length=8), sub=x, bin_name=bin_name, special_protocols=special_protocols) for x in subscriptions if x]
         if subscriptions
         else []
@@ -204,6 +208,7 @@ def aggregate(args: argparse.Namespace) -> None:
         subscribes_file=subscribes_file,
         special_protocols=args.special_protocols,
         manual_url=args.manual_url,
+        manual_proxy_url=args.manual_proxy_url,
         page_url=args.page_url,
     )
 
@@ -272,14 +277,14 @@ def aggregate(args: argparse.Namespace) -> None:
             logger.error(f"cannot fetch any proxy")
             sys.exit(0)
 
-        name_count, to_rename = defaultdict(int), []
-        for idx, proxy in enumerate(nodes):
-            name = proxy['name']
-            name_count[name] += 1
-            if name_count[name] > 1:
-                to_rename.append((idx, f"{name}_{name_count[name]}"))
-        for idx, new_name in to_rename:
-            nodes[idx]['name'] = new_name
+        # name_count, to_rename = defaultdict(int), []
+        # for idx, proxy in enumerate(nodes):
+        #     name = proxy['name']
+        #     name_count[name] += 1
+        #     if name_count[name] > 1:
+        #         to_rename.append((idx, f"{name}_{name_count[name]}"))
+        # for idx, new_name in to_rename:
+        #     nodes[idx]['name'] = new_name
 
     subscriptions = set()
     for p in proxies:
@@ -546,6 +551,15 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default=os.environ.get("MANUAL_GIST_LINK", ""),
+        help="manual subscriptions link",
+    )
+
+    parser.add_argument(
+        "-mp",
+        "--manual_proxy_url",
+        type=str,
+        required=False,
+        default=os.environ.get("MANUAL_PROXY_GIST_LINK", ""),
         help="manual subscriptions link",
     )
 

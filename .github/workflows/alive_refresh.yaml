@@ -19,6 +19,7 @@ env:
   MANUAL_GIST_LINK: ${{ secrets.MANUAL_GIST_LINK }}
   PAGE_GIST_LINK: ${{ secrets.PAGE_GIST_LINK }}
   WHITE_SUB_URL: ${{ secrets.WHITE_SUB_URL }}
+  MANUAL_PROXY_GIST_LINK: ${{ secrets.MANUAL_PROXY_GIST_LINK }}
 
 jobs:
   process:

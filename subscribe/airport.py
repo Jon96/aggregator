@@ -703,10 +703,12 @@ class AirPort:
                 traceback.print_exc()
 
             generate_conf = os.path.join(PATH, "subconverter", "generate.ini")
+            pattern = re.compile(r"^(?:vless|vmess|trojan|hysteria2)://")
+            subconverter_url = text.replace(" ", "").replace("\n", "|") if pattern.match(text) else f"{artifact}.txt"
             success = subconverter.generate_conf(
                 generate_conf,
                 artifact,
-                f"{artifact}.txt",
+                subconverter_url,
                 f"{artifact}.yaml",
                 "clash",
                 True,
