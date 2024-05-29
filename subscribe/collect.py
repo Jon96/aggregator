@@ -298,6 +298,10 @@ def aggregate(args: argparse.Namespace) -> None:
         else:
             if url in error_info:
                 del error_info[url]
+    all_urls = [task.sub for task in tasks]
+    for url in error_info:
+        if url not in all_urls:
+            del error_info[url]
 
     subscriptions = set()
     for p in proxies:
