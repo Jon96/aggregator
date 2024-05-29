@@ -277,30 +277,27 @@ def aggregate(args: argparse.Namespace) -> None:
         # for idx, new_name in to_rename:
         #     nodes[idx]['name'] = new_name
 
-    from collections import defaultdict
-    from datetime import datetime
     import json
-    current_time = datetime.now().isoformat()
-    proxy_count = defaultdict()
-    error_info_url = utils.trim(args.error_info_url)
-    error_info = json.loads(utils.http_get(url=error_info_url, timeout=30))
-    for entry in proxies:
+    try:
+        error_info_url = utils.trim(args.error_info_link)
+        error_info = json.loads(utils.http_get(url=error_info_url, timeout=30))
+    except Exception:
+        error_info = {}
+    from collections import defaultdict
+    proxy_count = defaultdict(int)
+    for entry in nodes:
         url = entry["sub"]
         proxy_count[url] += 1
     for task in tasks:
         url = task.sub
         if url not in proxy_count:
-            if url in error_info['errors']:
-                error_info['errors'][url] += 1
+            if url in error_info:
+                error_info[url] += 1
             else:
-                error_info['errors'][url] = 1
+                error_info[url] = 1
         else:
-            if url in error_info['errors']:
-                del error_info['errors'][url]
-        error_info['update_time'] = current_time
-        error_info_file = os.path.join(DATA_BASE, "error_info.json")
-        with open(error_info_file, "w+", encoding="utf8") as f:
-            json.dump(error_info, f, indent=4)
+            if url in error_info:
+                del error_info[url]
 
     subscriptions = set()
     for p in proxies:
@@ -331,6 +328,11 @@ def aggregate(args: argparse.Namespace) -> None:
     default_filename = "proxies.yaml"
     proxies_file = os.path.join(DATA_BASE, args.filename or default_filename)
     logger.info(f"file_name: {proxies_file}")
+
+    error_info_file = os.path.join(DATA_BASE, "error_info.json")
+    with open(error_info_file, "w+", encoding="utf8") as f:
+        json.dump(error_info, f, indent=4)
+    logger.info(f"file_name: {error_info_file}")
 
     if args.all:
         dest_file, artifact, target = "config.yaml", "convert", "clash"
