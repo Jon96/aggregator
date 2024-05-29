@@ -105,8 +105,9 @@ def assign(
 
     tasks = []
     if len(page_proxies) > 0:
-        raw_content = "|".join(page_proxies).replace(" ", "")
-        tasks = [TaskConfig(name=utils.random_chars(length=8), sub=raw_content, bin_name=bin_name, special_protocols=special_protocols)]
+        # raw_content = "|".join(page_proxies).replace(" ", "")
+        for pxy in page_proxies:
+            tasks = [TaskConfig(name=utils.random_chars(length=8), sub=pxy, bin_name=bin_name, special_protocols=special_protocols)]
 
     subscriptions = set(subscriptions + page_groups)
     tasks += (
@@ -276,6 +277,31 @@ def aggregate(args: argparse.Namespace) -> None:
         # for idx, new_name in to_rename:
         #     nodes[idx]['name'] = new_name
 
+    from collections import defaultdict
+    from datetime import datetime
+    import json
+    current_time = datetime.now().isoformat()
+    proxy_count = defaultdict()
+    error_info_url = utils.trim(args.error_info_url)
+    error_info = json.loads(utils.http_get(url=error_info_url, timeout=30))
+    for entry in proxies:
+        url = entry["sub"]
+        proxy_count[url] += 1
+    for task in tasks:
+        url = task.sub
+        if url not in proxy_count:
+            if url in error_info['errors']:
+                error_info['errors'][url] += 1
+            else:
+                error_info['errors'][url] = 1
+        else:
+            if url in error_info['errors']:
+                del error_info['errors'][url]
+        error_info['update_time'] = current_time
+        error_info_file = os.path.join(DATA_BASE, "error_info.json")
+        with open(error_info_file, "w+", encoding="utf8") as f:
+            json.dump(error_info, f, indent=4)
+
     subscriptions = set()
     for p in proxies:
         # 移除无用的标记
@@ -362,6 +388,10 @@ def aggregate(args: argparse.Namespace) -> None:
         if os.path.exists(proxies_file) and os.path.isfile(proxies_file):
             with open(proxies_file, "r", encoding="utf8") as f:
                 files[default_filename] = {"content": f.read(), "filename": args.filename}
+
+        if os.path.exists(error_info_file) and os.path.isfile(error_info_file):
+            with open(error_info_file, "r", encoding="utf8") as f:
+                files["error_info.json"] = {"content": f.read(), "filename": "error_info.json"}
 
         if urls:
             files[subscribes_file] = {"content": "\n".join(urls), "filename": subscribes_file}
@@ -541,6 +571,15 @@ if __name__ == "__main__":
         type=str,
         required=False,
         default=os.environ.get("PAGE_GIST_LINK", ""),
+        help="page subscriptions link",
+    )
+
+    parser.add_argument(
+        "-eil",
+        "--error_info_link",
+        type=str,
+        required=False,
+        default=os.environ.get("ERROR_INFO_LINK", ""),
         help="page subscriptions link",
     )
 
