@@ -16,7 +16,6 @@ env:
   GIST_LINK: ${{ secrets.GIST_LINK }}
 
   # extra subscription
-  MANUAL_GIST_LINK: ${{ secrets.MANUAL_GIST_LINK }}
   PAGE_GIST_LINK: ${{ secrets.PAGE_GIST_LINK }}
   WHITE_SUB_URL: ${{ secrets.WHITE_SUB_URL }}
 
@@ -59,7 +58,7 @@ jobs:
           fi
 
       - name: Collect
-        run: python -u subscribe/collect.py --all --overwrite --skip --special_protocols
+        run: python -u subscribe/collect.py -f alive_proxies.yaml --all --overwrite --special_protocols
 
       - name: Timestamp
         run: date

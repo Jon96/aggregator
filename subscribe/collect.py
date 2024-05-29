@@ -12,7 +12,6 @@ import shutil
 import subprocess
 import sys
 import time
-from collections import defaultdict
 
 import crawl
 import executable
@@ -77,24 +76,8 @@ def assign(
     logger.info(f"keep special_protocols in proxies: {special_protocols}")
     logger.info(f"load exists subscription finished, count: {len(subscriptions)}")
 
-    manual_url = utils.trim(text=kwargs.get("manual_url", ""))
-    if not manual_url:
-        logger.warning("cannot find valid manual url for the subscriptions")
-        manual_groups = []
-    else:
-        manual_content = utils.http_get(url=manual_url, timeout=30)
-        manual_groups = re.findall(r"^https?://\S+", manual_content, flags=re.M)
-        if not manual_groups:
-            logger.warning("cannot found any valid manual subscription")
-            manual_groups = []
-        logger.info(f"found {len(set(manual_groups))} / {len(manual_content.splitlines())} subscriptions in manual text")
-
-    manual_proxy_url = utils.trim(text=kwargs.get("manual_proxy_url", ""))
-    if not manual_proxy_url:
-        logger.warning("cannot find valid manual proxy url for the subscriptions")
-
     page_url = utils.trim(text=kwargs.get("page_url", ""))
-    page_groups = []
+    page_groups, page_proxies = [], []
     if not page_url:
         logger.warning("cannot find valid page url for the subscriptions")
     else:
@@ -104,19 +87,28 @@ def assign(
             logger.warning("cannot found any valid page subscription")
         else:
             for page in page_subscriptions:
-                cur_page_groups = re.findall(r"^https?://\S+", utils.http_get(url=page, timeout=30), flags=re.M)
+                sub_page_content = utils.http_get(url=page, timeout=30)
+                cur_page_groups = re.findall(r"^https?://\S+", sub_page_content, flags=re.M)
                 if not cur_page_groups:
-                    logger.warning(f"cannot found any valid manual subscription in {page}")
+                    logger.warning(f"cannot found any valid manual subscription in {page[-10:]}")
                 else:
                     for sub in set(cur_page_groups):
                         if sub not in page_groups:
-                            logger.info(f"found {sub} in page subscription")
                             page_groups.append(sub)
+                cur_page_proxies = re.findall(r"^(?:vless|vmess|trojan|hysteria2)://\S+", sub_page_content, flags=re.M)
+                if cur_page_proxies:
+                    for prx in set(cur_page_proxies):
+                        if prx not in page_proxies:
+                            page_proxies.append(prx)
+    logger.info(f"found {len(page_groups)} subscriptions in manual pages")
+    logger.info(f"found {len(page_proxies)} proxies in manual pages")
 
-    if manual_proxy_url:
-        tasks = [TaskConfig(name=utils.random_chars(length=8), sub=manual_proxy_url, bin_name=bin_name, special_protocols=special_protocols)]
+    tasks = []
+    if len(page_proxies) > 0:
+        raw_content = "|".join(page_proxies).replace(" ", "")
+        tasks = [TaskConfig(name=utils.random_chars(length=8), sub=raw_content, bin_name=bin_name, special_protocols=special_protocols)]
 
-    subscriptions = set(subscriptions + manual_groups + page_groups)
+    subscriptions = set(subscriptions + page_groups)
     tasks += (
         [TaskConfig(name=utils.random_chars(length=8), sub=x, bin_name=bin_name, special_protocols=special_protocols) for x in subscriptions if x]
         if subscriptions
@@ -207,8 +199,6 @@ def aggregate(args: argparse.Namespace) -> None:
         access_token=access_token,
         subscribes_file=subscribes_file,
         special_protocols=args.special_protocols,
-        manual_url=args.manual_url,
-        manual_proxy_url=args.manual_proxy_url,
         page_url=args.page_url,
     )
 
@@ -543,24 +533,6 @@ if __name__ == "__main__":
         action="store_true",
         default=False,
         help="if keep special_protocols in proxies",
-    )
-
-    parser.add_argument(
-        "-mu",
-        "--manual_url",
-        type=str,
-        required=False,
-        default=os.environ.get("MANUAL_GIST_LINK", ""),
-        help="manual subscriptions link",
-    )
-
-    parser.add_argument(
-        "-mp",
-        "--manual_proxy_url",
-        type=str,
-        required=False,
-        default=os.environ.get("MANUAL_PROXY_GIST_LINK", ""),
-        help="manual subscriptions link",
     )
 
     parser.add_argument(

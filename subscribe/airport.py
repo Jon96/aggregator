@@ -441,8 +441,9 @@ class AirPort:
         if "" == self.sub:
             logger.error(f"[ParseError] cannot found any proxies because subscribe url is empty, domain: {self.ref}")
             return []
-
-        if self.sub.startswith(utils.FILEPATH_PROTOCAL):
+        if re.match(r"^(?:vless|vmess|trojan|hysteria2)://\S+", self.sub):
+            text = self.sub
+        elif self.sub.startswith(utils.FILEPATH_PROTOCAL):
             self.sub = self.sub[len(utils.FILEPATH_PROTOCAL) - 1 :]
             if not os.path.exists(self.sub) or not os.path.isfile(self.sub):
                 logger.error(f"[ParseError] file: {self.sub} not found")
@@ -704,7 +705,7 @@ class AirPort:
 
             generate_conf = os.path.join(PATH, "subconverter", "generate.ini")
             pattern = re.compile(r"^(?:vless|vmess|trojan|hysteria2)://")
-            subconverter_url = text.replace(" ", "").replace("\n", "|") if pattern.match(text) else f"{artifact}.txt"
+            subconverter_url = text if pattern.match(text) else f"{artifact}.txt"
             success = subconverter.generate_conf(
                 generate_conf,
                 artifact,
