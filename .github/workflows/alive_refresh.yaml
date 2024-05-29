@@ -18,6 +18,7 @@ env:
   # extra subscription
   PAGE_GIST_LINK: ${{ secrets.PAGE_GIST_LINK }}
   WHITE_SUB_URL: ${{ secrets.WHITE_SUB_URL }}
+  ERROR_INFO_LINK: ${{ secrets.ERROR_INFO_LINK }}
 
 jobs:
   process:
