@@ -21,6 +21,7 @@ import workflow
 import yaml
 from airport import AirPort
 from logger import logger
+from urlvalidator import isurl
 from workflow import TaskConfig
 
 import json
@@ -79,6 +80,26 @@ def assign(
         )
 
         return [links[i] for i in range(len(links)) if results[i][0] and not results[i][1]]
+
+    def parse_domains(content: str) -> dict:
+        if not content or not isinstance(content, str):
+            logger.warning("cannot found any domain due to content is empty or not string")
+            return {}
+
+        records = {}
+        for line in content.split("\n"):
+            line = utils.trim(line)
+            if not line or line.startswith("#"):
+                continue
+
+            words = line.rsplit(delimiter, maxsplit=2)
+            address = utils.trim(words[0])
+            coupon = utils.trim(words[1]) if len(words) > 1 else ""
+            invite_code = utils.trim(words[2]) if len(words) > 2 else ""
+
+            records[address] = {"coupon": coupon, "invite_code": invite_code}
+
+        return records
 
     subscribes_file = utils.trim(kwargs.get("subscribes_file", ""))
     access_token = utils.trim(kwargs.get("access_token", ""))
@@ -148,20 +169,13 @@ def assign(
     if not domains_file:
         domains_file = "domains.txt"
 
+    # 加载已有站点列表
     fullpath = os.path.join(DATA_BASE, domains_file)
     if os.path.exists(fullpath) and os.path.isfile(fullpath):
         with open(fullpath, "r", encoding="UTF8") as f:
-            for line in f.readlines():
-                line = line.replace("\n", "").strip()
-                if not line:
-                    continue
+            domains.update(parse_domains(content=str(f.read())))
 
-                words = line.rsplit(delimiter, maxsplit=1)
-                address = utils.trim(words[0])
-                coupon = utils.trim(words[1]) if len(words) > 1 else ""
-
-                domains[address] = coupon
-
+    # 爬取新站点列表
     if not domains or overwrite:
         candidates = crawl.collect_airport(
             channel="jichang_list",
@@ -175,8 +189,24 @@ def assign(
         )
 
         if candidates:
-            domains.update(candidates)
+            for k, v in candidates.items():
+                item = domains.get(k, {})
+                item["coupon"] = v
+
+                domains[k] = item
+
             overwrite = True
+
+    # 加载自定义机场列表
+    customize_link = utils.trim(kwargs.get("customize_link", ""))
+    if customize_link:
+        if isurl(customize_link):
+            domains.update(parse_domains(content=utils.http_get(url=customize_link)))
+        else:
+            local_file = os.path.join(DATA_BASE, customize_link)
+            if local_file != fullpath and os.path.exists(local_file) and os.path.isfile(local_file):
+                with open(local_file, "r", encoding="UTF8") as f:
+                    domains.update(parse_domains(content=str(f.read())))
 
     if not domains:
         logger.error("cannot collect any new airport for free use")
@@ -185,13 +215,14 @@ def assign(
     if overwrite:
         crawl.save_candidates(candidates=domains, filepath=fullpath, delimiter=delimiter)
 
-    for domain, coupon in domains.items():
+    for domain, param in domains.items():
         name = crawl.naming_task(url=domain)
         tasks.append(
             TaskConfig(
                 name=name,
                 domain=domain,
-                coupon=coupon,
+                coupon=param.get("coupon", ""),
+                invite_code=param.get("invite_code", ""),
                 bin_name=bin_name,
                 rigid=rigid,
                 chuck=chuck,
@@ -237,6 +268,7 @@ def aggregate(args: argparse.Namespace) -> None:
         gist_id=gist_id,
         access_token=access_token,
         subscribes_file=subscribes_file,
+        customize_link=args.yourself,
         page_filename=args.page_filename,
         manual_subs=manual_subs
     )
@@ -262,28 +294,9 @@ def aggregate(args: argparse.Namespace) -> None:
 
     nodes, workspace = [], os.path.join(PATH, "clash")
 
-    # prefilter long name of grpc-service-name
-    prefiltered_proxies = []
-    for proxy in proxies:
-        grpc_opts = proxy.get('grpc-opts', {})
-        grpc_service_name = grpc_opts.get('grpc-service-name', '')
-        if len(grpc_service_name) <= 300:
-            prefiltered_proxies.append(proxy)
-    logger.info(f"prefilter long grpc-service-name, num: {len(proxies)-len(prefiltered_proxies)}")
-    proxies = prefiltered_proxies
-
     if args.skip:
         nodes = clash.filter_proxies(proxies).get("proxies", [])
     else:
-        # vless with short-id skips test due to clash stability issues
-        short_id_proxies = []
-        for item in proxies:
-            if item["type"] == "vless" and "reality-opts" in item:
-                reality_opts = item.get("reality-opts", {})
-                if ("short-id" in reality_opts and isinstance(reality_opts["short-id"], str) and
-                        len(reality_opts["short-id"]) == 8 and clash.is_hex(reality_opts["short-id"])):
-                    short_id_proxies.append(item)
-        proxies = [i for i in proxies if i not in short_id_proxies]
         binpath = os.path.join(workspace, clash_bin)
         filename = "config.yaml"
         proxies = clash.generate_config(workspace, list(proxies), filename)
@@ -323,10 +336,7 @@ def aggregate(args: argparse.Namespace) -> None:
         except:
             logger.error(f"terminate clash process error")
 
-        clean_nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]
-        nodes = clean_nodes + short_id_proxies
-        logger.info(f"found {len(clean_nodes)} clean nodes, and {len(short_id_proxies)} short id Vless.")
-        # nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]
+        nodes = [proxies[i] for i in range(len(proxies)) if masks[i]]
         if len(nodes) <= 0:
             logger.error(f"cannot fetch any proxy")
             sys.exit(0)
@@ -663,6 +673,15 @@ if __name__ == "__main__":
         required=False,
         default=0,
         help="ignoring default proxies filter rules",
+    )
+
+    parser.add_argument(
+        "-y",
+        "--yourself",
+        type=str,
+        required=False,
+        default=os.environ.get("CUSTOMIZE_LINK", ""),
+        help="the url to the list of airports that you maintain yourself",
     )
 
     parser.add_argument(
