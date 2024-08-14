@@ -52,7 +52,7 @@ DEFAULT_HTTP_HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9",
 }
 
-PROXY_REG = r"^(?:vless|ss|ssr|socks5|vmess|trojan|hysteria2|tuic)://\S+"
+PROXY_REG = r"^(?:vless|ss|ssr|socks5|vmess|trojan|hysteria2|hy2|tuic)://\S+"
 
 
 def random_chars(length: int, punctuation: bool = False) -> str:
