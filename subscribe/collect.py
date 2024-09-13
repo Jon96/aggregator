@@ -375,16 +375,17 @@ def aggregate(args: argparse.Namespace) -> None:
         sub = p.pop("sub", "")
         if sub:
             subscriptions.add(sub)
-
-    unique_nodes, unique_node_tags = [], set()
-    for node in nodes:
-        node_tag = tuple((k, str(v)) for k, v in node.items() if k in ['type', 'server', 'port'])
-        if node_tag not in unique_node_tags:
-            unique_node_tags.add(node_tag)
-            unique_nodes.append(node)
-    dup_num = len(nodes) - len(unique_nodes)
-    nodes = unique_nodes
-    logger.info(f"Found {len(nodes)} proxies, removed {dup_num} duplicated proxies")
+    
+    # 移除重复的节点
+    # unique_nodes, unique_node_tags = [], set()
+    # for node in nodes:
+    #     node_tag = tuple((k, str(v)) for k, v in node.items() if k in ['type', 'server', 'port'])
+    #     if node_tag not in unique_node_tags:
+    #         unique_node_tags.add(node_tag)
+    #         unique_nodes.append(node)
+    # dup_num = len(nodes) - len(unique_nodes)
+    # nodes = unique_nodes
+    # logger.info(f"Found {len(nodes)} proxies, removed {dup_num} duplicated proxies")
 
     data = {"proxies": nodes}
     urls = list(subscriptions)
