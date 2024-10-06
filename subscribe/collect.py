@@ -698,7 +698,7 @@ if __name__ == "__main__":
         "--manual_filename",
         type=str,
         required=False,
-        default="manual-subscribes.txt",
+        default="beforehand-subscribes.txt",
         help="manual subscriptions filename",
     )
 
