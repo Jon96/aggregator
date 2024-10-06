@@ -689,7 +689,7 @@ if __name__ == "__main__":
         "--page_filename",
         type=str,
         required=False,
-        default="page-subscribes.txt",
+        default="beforehand-pages.txt",
         help="page subscriptions filename",
     )
 
